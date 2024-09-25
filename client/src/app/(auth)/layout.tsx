@@ -1,3 +1,5 @@
+import { Toast } from "@/components/ui/toast";
+
 export default function AuthLayout({
   children,
 }: Readonly<{
