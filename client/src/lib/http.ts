@@ -1,15 +1,41 @@
 import envConfig from "@/config";
 import { LoginResType } from "@/schemaValidations/auth.schema";
+import { any, string } from "zod";
 
 type CustomOptions = Omit<RequestInit ,'method'> & {
     baseUrl?:string|undefined
 }
+
+const ENTITY_ERROR_STATUS = 422
+type EntityErrorPayLoad =  {
+    message: string,
+    errors :{
+        field:string
+        message:string
+    }[]
+}
+
+
 class HttpError extends Error{
     status:number
-    payload:any
+    payload:{
+        message:string
+        [key:string]:any
+    }
     constructor({status,payload}:{status:number; payload:any}){
         super('Http Error')
         this.status= status
+        this.payload = payload
+    }
+}
+
+export class EntityError extends HttpError {
+    status : 422
+    payload:EntityErrorPayLoad
+
+    constructor({status,payload}:{status:422; payload:EntityErrorPayLoad}){
+        super ({status,payload})
+        this.status = status
         this.payload = payload
     }
 }
@@ -59,7 +85,14 @@ const request = async <Respone> (method:'GET' | 'POST'|'PUT'|'DELETE' , url:stri
     }
 
     if(!res.ok){
-        throw new HttpError(data)
+        if(res.status === ENTITY_ERROR_STATUS){
+            throw new HttpError(data as {
+                status:422,
+                payload : EntityErrorPayLoad
+            })
+        }else{
+            throw new HttpError(data)
+        }
     }
 
     if((['/auth/login', '/auth/register'].includes(url))){

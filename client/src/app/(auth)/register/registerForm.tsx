@@ -19,6 +19,7 @@ import { useEffect } from "react";
 import authApiRequets from "@/apiRequest/auth";
 import { useToast } from "@/hooks/use-toast";
 import { useRouter } from "next/navigation";
+import { handleErrorApi } from "@/lib/utils";
 
 const RegisterForm = () => {
   const { toast } = useToast();
@@ -48,27 +49,10 @@ const RegisterForm = () => {
       await authApiRequets.auth({ sessionToken: result.payload.data.token });
       router.push("/me");
     } catch (error: any) {
-      console.log("error", error);
-      const errors = error.payload.errors as {
-        field: string;
-        message: string;
-      }[];
-
-      console.log(errors);
-      const status = error.status as number;
-      if (status === 422) {
-        errors.forEach((error) => {
-          form.setError(error.field as "email" | "password", {
-            type: "server",
-            message: error.message,
-          });
-        });
-      } else {
-        toast({
-          title: "Error",
-          description: error.payload.message,
-        });
-      }
+      handleErrorApi({
+        error,
+        setError: form.setError,
+      });
     }
   }
   return (
