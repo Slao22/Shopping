@@ -9,17 +9,20 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import {
   RegisterBody,
   RegisterBodyType,
 } from "@/schemaValidations/auth.schema";
-import envConfig from "@/config";
 import { useEffect } from "react";
+import authApiRequets from "@/apiRequest/auth";
+import { useToast } from "@/hooks/use-toast";
+import { useRouter } from "next/navigation";
 
 const RegisterForm = () => {
+  const { toast } = useToast();
+  const router = useRouter();
   useEffect(() => {
     console.log(process.env.NEXT_PUBLIC_API_ENDPOINT);
   }, []);
@@ -35,23 +38,38 @@ const RegisterForm = () => {
     },
   });
 
-  // 2. Define a submit handler.
   async function onSubmit(values: RegisterBodyType) {
-    // Do something with the form values.
-    // ✅ This will be type-safe and validated.
-    // console.log(process.env.NEXT_PUBLIC_API_ENDPOINT);
+    try {
+      const result = await authApiRequets.register(values);
+      toast({
+        title: "Success",
+        description: result.payload.message,
+      });
+      await authApiRequets.auth({ sessionToken: result.payload.data.token });
+      router.push("/me");
+    } catch (error: any) {
+      console.log("error", error);
+      const errors = error.payload.errors as {
+        field: string;
+        message: string;
+      }[];
 
-    const result = await fetch(
-      `${envConfig.NEXT_PUBLIC_API_ENDPOINT}/auth/register`,
-      {
-        body: JSON.stringify(values),
-        headers: {
-          "Content-Type": "application/json",
-        },
-        method: "POST",
+      console.log(errors);
+      const status = error.status as number;
+      if (status === 422) {
+        errors.forEach((error) => {
+          form.setError(error.field as "email" | "password", {
+            type: "server",
+            message: error.message,
+          });
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: error.payload.message,
+        });
       }
-    ).then((res) => res.json());
-    console.log(result);
+    }
   }
   return (
     <>
