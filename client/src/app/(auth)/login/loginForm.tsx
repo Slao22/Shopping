@@ -15,11 +15,11 @@ import { LoginBody, LoginBodyType } from "@/schemaValidations/auth.schema";
 import envConfig from "@/config";
 import { useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { useAppContext } from "@/app/AppProvider";
-
+import authApiRequets from "@/apiRequest/auth";
+import { useRouter } from "next/navigation";
 const LoginForm = () => {
   const { toast } = useToast();
-  const { setSessionToken } = useAppContext();
+  const router = useRouter();
   useEffect(() => {
     console.log(process.env.NEXT_PUBLIC_API_ENDPOINT);
   }, []);
@@ -36,55 +36,19 @@ const LoginForm = () => {
   // 2. Define a submit handler.
   async function onSubmit(values: LoginBodyType) {
     try {
-      const result = await fetch(
-        `${envConfig.NEXT_PUBLIC_API_ENDPOINT}/auth/login`,
-        {
-          body: JSON.stringify(values),
-          headers: {
-            "Content-Type": "application/json",
-          },
-          method: "POST",
-        }
-      ).then(async (res) => {
-        const payload = await res.json();
-        const data = {
-          status: res.status,
-          payload,
-        };
-        if (!res.ok) {
-          throw data;
-        }
-        return data;
-      });
+      const result = await authApiRequets.login(values);
       toast({
         title: "Success",
         description: result.payload.message,
       });
-      const resultFromNextServer = await fetch("api/auth", {
-        method: "POST",
-        body: JSON.stringify(result),
-        headers: {
-          "Content-Type": "application/json",
-        },
-      }).then(async (res) => {
-        const payload = await res.json();
-        const data = {
-          status: res.status,
-          payload,
-        };
-        if (!res.ok) {
-          throw data;
-        }
-        return data;
-      });
-      setSessionToken(resultFromNextServer.payload.data.token);
+      await authApiRequets.auth({ sessionToken: result.payload.data.token });
+      router.push("/me");
     } catch (error: any) {
       console.log("error", error);
       const errors = error.payload.errors as {
         field: string;
         message: string;
       }[];
-
       console.log(errors);
       const status = error.status as number;
       if (status === 422) {
