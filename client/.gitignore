@@ -40,7 +40,7 @@ Thumbs.db
 # Uncomment the one you want to ignore
 
 # If using npm
-package-lock.json
+# package-lock.json
 
 # If using yarn
-yarn.lock
+# yarn.lock
