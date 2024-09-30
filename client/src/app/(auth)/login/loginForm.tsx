@@ -15,10 +15,11 @@ import { LoginBody, LoginBodyType } from "@/schemaValidations/auth.schema";
 import envConfig from "@/config";
 import { useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { useAppContext } from "@/app/AppProvider";
 
 const LoginForm = () => {
   const { toast } = useToast();
-
+  const { setSessionToken } = useAppContext();
   useEffect(() => {
     console.log(process.env.NEXT_PUBLIC_API_ENDPOINT);
   }, []);
@@ -34,9 +35,6 @@ const LoginForm = () => {
 
   // 2. Define a submit handler.
   async function onSubmit(values: LoginBodyType) {
-    // Do something with the form values.
-    // ✅ This will be type-safe and validated.
-    // console.log(process.env.NEXT_PUBLIC_API_ENDPOINT);
     try {
       const result = await fetch(
         `${envConfig.NEXT_PUBLIC_API_ENDPOINT}/auth/login`,
@@ -53,19 +51,33 @@ const LoginForm = () => {
           status: res.status,
           payload,
         };
-        console.log("res", res);
-        console.log("payload", payload);
-        console.log("data", data);
-
         if (!res.ok) {
           throw data;
         }
-        toast({
-          title: "Success",
-          description: data.payload.message,
-        });
         return data;
       });
+      toast({
+        title: "Success",
+        description: result.payload.message,
+      });
+      const resultFromNextServer = await fetch("api/auth", {
+        method: "POST",
+        body: JSON.stringify(result),
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }).then(async (res) => {
+        const payload = await res.json();
+        const data = {
+          status: res.status,
+          payload,
+        };
+        if (!res.ok) {
+          throw data;
+        }
+        return data;
+      });
+      setSessionToken(resultFromNextServer.payload.data.token);
     } catch (error: any) {
       console.log("error", error);
       const errors = error.payload.errors as {
@@ -89,7 +101,6 @@ const LoginForm = () => {
         });
       }
     }
-    // console.log(result);
   }
   return (
     <>
