@@ -1,11 +1,15 @@
 import envConfig from "@/config";
+import { normalizePath } from "@/lib/utils";
 import { LoginResType } from "@/schemaValidations/auth.schema";
+import { redirect } from "next/navigation";
+import { normalize } from "path";
 import { any, string } from "zod";
 
 type CustomOptions = Omit<RequestInit ,'method'> & {
     baseUrl?:string|undefined
 }
 
+const AUTHENTICATION_ERROR_STATUS = 401
 const ENTITY_ERROR_STATUS = 422
 type EntityErrorPayLoad =  {
     message: string,
@@ -16,7 +20,7 @@ type EntityErrorPayLoad =  {
 }
 
 
-class HttpError extends Error{
+export class HttpError extends Error{
     status:number
     payload:{
         message:string
@@ -42,6 +46,7 @@ export class EntityError extends HttpError {
 
 class SessionToken{
     private token =''
+    private _expiresAt= new Date().toISOString()
     get value(){
         return this.token
     }
@@ -52,9 +57,21 @@ class SessionToken{
         }
         this.token = token
     }
+
+    get expiresAt(){
+        return this._expiresAt
+    }
+
+    set expiresAt(expiresAt:string){
+        if(typeof window ==='undefined'){
+            throw new Error ('cannot set token on server side')
+        }
+         this._expiresAt = expiresAt
+        }
 }
 
 export const clientSessionToken = new SessionToken()
+let clientLogoutRequest: null | Promise<any> = null
 
 const request = async <Respone> (method:'GET' | 'POST'|'PUT'|'DELETE' , url:string, options?: CustomOptions | undefined) =>{
     const body = options?.body ? JSON.stringify(options.body) : undefined
@@ -90,15 +107,41 @@ const request = async <Respone> (method:'GET' | 'POST'|'PUT'|'DELETE' , url:stri
                 status:422,
                 payload : EntityErrorPayLoad
             })
-        }else{
+        }else if(res.status === AUTHENTICATION_ERROR_STATUS){
+            if(typeof window !=='undefined'){
+              if(!clientLogoutRequest){
+                clientLogoutRequest = fetch('/api/auth/logout',{
+                    method: 'POST',
+                    body: JSON.stringify({force: true}),
+                    headers:{
+                        ...baseHeaders
+                    }
+                })
+                await clientLogoutRequest
+                clientSessionToken.value =''
+                clientSessionToken.expiresAt = new Date().toISOString()
+                clientLogoutRequest = null
+                location.href = '/login'
+            }
+            else{
+                const sessionToken = (options?.headers as any).Authorization.split('Bearer ')[1]
+                redirect(`logout?sessionToken= ${sessionToken}`)
+            }
+        }
+    }
+        else{
             throw new HttpError(data)
         }
     }
-
-    if((['/auth/login', '/auth/register'].includes(url))){
-        clientSessionToken.value = (payload as LoginResType).data.token
-    }else if ('/auth/logout'.includes(url)){
-        clientSessionToken.value = ''
+    //dam bao logic chi chay client
+    if(typeof window !== 'undefined'){
+        if((['auth/login', 'auth/register'].some(item => item === normalizePath(url)))){
+            clientSessionToken.value = (payload as LoginResType).data.token
+            clientSessionToken.expiresAt = (payload as LoginResType).data.expiresAt
+        }else if ('auth/logout' === normalize(url)){
+            clientSessionToken.value = ''
+            clientSessionToken.expiresAt = new Date().toISOString()
+        }
     }
     return data
 }

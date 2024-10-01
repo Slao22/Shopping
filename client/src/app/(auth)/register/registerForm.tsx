@@ -42,12 +42,15 @@ const RegisterForm = () => {
   async function onSubmit(values: RegisterBodyType) {
     try {
       const result = await authApiRequets.register(values);
+      await authApiRequets.auth({
+        sessionToken: result.payload.data.token,
+        expiresAt: result.payload.data.expiresAt,
+      });
+      router.push("/me");
       toast({
         title: "Success",
         description: result.payload.message,
       });
-      await authApiRequets.auth({ sessionToken: result.payload.data.token });
-      router.push("/me");
     } catch (error: any) {
       handleErrorApi({
         error,
