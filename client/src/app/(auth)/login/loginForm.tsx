@@ -41,11 +41,15 @@ const LoginForm = () => {
     setLoading(true);
     try {
       const result = await authApiRequets.login(values);
+
+      await authApiRequets.auth({
+        sessionToken: result.payload.data.token,
+        expiresAt: result.payload.data.expiresAt,
+      });
       toast({
         title: "Success",
         description: result.payload.message,
       });
-      await authApiRequets.auth({ sessionToken: result.payload.data.token });
       router.push("/me");
     } catch (error: any) {
       handleErrorApi({

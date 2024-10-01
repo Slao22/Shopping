@@ -2,10 +2,11 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
-import Header from "@/components/ui/header";
 import { Toaster } from "@/components/ui/toaster";
 import AppProvider from "@/app/AppProvider";
 import { cookies } from "next/headers";
+import Header from "@/components/header";
+import SlideSession from "@/components/silde-session";
 
 const inter = Inter({ subsets: ["vietnamese"] });
 export const metadata: Metadata = {
@@ -33,6 +34,7 @@ export default function RootLayout({
           <Header />
           <AppProvider initialSessionToken={sessionToken?.value}>
             {children}
+            <SlideSession></SlideSession>
           </AppProvider>
         </ThemeProvider>
       </body>
